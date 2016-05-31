@@ -2,8 +2,9 @@
 
 ## Usage
 
-```
+### TLS
 
+```
 import (
 	"github.com/whosonfirst/go-httpony/tls"	
 	"net/http"
