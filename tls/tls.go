@@ -45,20 +45,18 @@ func EnsureTLSRoot() (string, error) {
 
 func GenerateTLSCert(host string, root string) (string, string, error) {
 
-	_, err := os.Stat(root)
+	info, err := os.Stat(root)
 
 	if os.IsNotExist(err) {
 		return "", "", errors.New("Certificate root does not exist!")
 	}
 
-	root = path.Join(root, host)
-
-	info, err := os.Stat(root)
-
 	if info.Mode().Perm() != 0700 {
 		return "", "", errors.New("Certificate root has insecure permissions")
 	}
 
+	root = path.Join(root, host)
+	
 	cert_path := path.Join(root, "cert.pem")
 	key_path := path.Join(root, "key.pem")
 
