@@ -15,7 +15,7 @@ import (
 // 0700. You do _not_ need to use this if you have your own
 // root directory for certificates.
 
-root, err := httpony.EnsureTLSRoot()
+root, err := tls.EnsureTLSRoot()
 
 if err != nil {
 	panic(err)
@@ -24,7 +24,7 @@ if err != nil {
 // These are self-signed certificates so your browser _will_
 // complain about them. All the usual caveats apply.
 
-cert, key, err := httpony.GenerateTLSCert(*host, root)
+cert, key, err := tls.GenerateTLSCert(*host, root)
 	
 if err != nil {
 	panic(err)
