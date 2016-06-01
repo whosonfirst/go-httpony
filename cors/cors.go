@@ -1,19 +1,19 @@
 package cors
 
-import(
+import (
 	"net/http"
 )
 
-func EnsureCORSHandler(next http.Handler, cors bool) http.Handler {
+func EnsureCORSHandler(next http.Handler, enable bool, allow string) http.Handler {
 
-		fn := func(rsp http.ResponseWriter, req *http.Request) {
+	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
-			if cors {
-				rsp.Header().Set("Access-Control-Allow-Origin", "*")
-			}
-
-			next.ServeHTTP(rsp, req)
+		if enable {
+			rsp.Header().Set("Access-Control-Allow-Origin", allow)
 		}
 
-		return http.HandlerFunc(fn)
+		next.ServeHTTP(rsp, req)
+	}
+
+	return http.HandlerFunc(fn)
 }
