@@ -1,5 +1,7 @@
 # go-httpony
 
+Utility functions for HTTP ponies written in Go.
+
 ## Usage
 
 ### TLS
