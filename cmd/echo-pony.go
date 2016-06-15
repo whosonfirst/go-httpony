@@ -1,5 +1,18 @@
 package main
 
+/*
+
+	THIS DOESN'T REALLY DO ANYTHING. BY DESIGN. NO.
+
+	Think of this as "starter" code for most basic HTTP pony
+	servers. As in copy it and rename it as something else
+	and modify the stuff that goes on inside the 'request_handler'
+	function defintion.
+
+	(20160615/thisisaaronland)
+
+*/
+
 import (
 	"encoding/json"
 	"flag"

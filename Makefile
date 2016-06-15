@@ -27,6 +27,8 @@ vendor: rmdeps deps
 fmt:
 	go fmt cmd/*.go
 	go fmt *.go
+	go fmt cors/*.go
+	go fmt tls/*.go
 
 bin: 	self
 	@GOPATH=$(GOPATH) go build -o bin/echo-pony cmd/echo-pony.go
