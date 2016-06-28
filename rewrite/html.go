@@ -37,7 +37,7 @@ func (h HTMLRewriteHandler) Handler(reader io.Reader) http.Handler {
 
 		// This bit is still problematic and triggers all kinds of weird
 		// memory-pointer errors. I have no idea why (20160627/thisisaaronland)
-		
+
 		h.writer.SetKey("request", req)
 		h.writer.Rewrite(doc, rsp)
 		return

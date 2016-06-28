@@ -11,6 +11,7 @@ self:   prep
 	cp -r cors src/github.com/whosonfirst/go-httpony/
 	cp -r tls src/github.com/whosonfirst/go-httpony/
 	cp -r rewrite src/github.com/whosonfirst/go-httpony/
+	cp -r crypto src/github.com/whosonfirst/go-httpony/
 
 rmdeps:
 	if test -d src; then rm -rf src; fi 
@@ -31,6 +32,7 @@ fmt:
 	go fmt cors/*.go
 	go fmt tls/*.go
 	go fmt rewrite/*.go
+	go fmt crypto/*.go
 
 bin: 	self
 	@GOPATH=$(GOPATH) go build -o bin/echo-pony cmd/echo-pony.go
