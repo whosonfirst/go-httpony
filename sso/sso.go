@@ -3,11 +3,11 @@ package sso
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/vaughan0/go-ini"
 	"github.com/whosonfirst/go-httpony/crypto"
 	"github.com/whosonfirst/go-httpony/rewrite"
-	"github.com/vaughan0/go-ini"
 	"golang.org/x/net/html"
-	"golang.org/x/oauth2"	
+	"golang.org/x/oauth2"
 )
 
 func NewSSORewriter() (*SSORewriter, error) {
@@ -75,21 +75,42 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 }
 
 type SSOHandler struct {
-
+	Crypt  *crypro.Crypt
+	Writer *SSOWriter
+	OAuth  *oauth2.Config
 }
 
-func NewSSOHandler(sso_config string) (*SSOHandler, error){
+func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 
 	sso_cfg, err = ini.LoadFile(*sso_config)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	oauth_client, _ := sso_cfg.Get("oauth", "client_id")
-	oauth_secret, _ := sso_cfg.Get("oauth", "client_secret")
-	oauth_auth_url, _ := sso_cfg.Get("oauth", "auth_url")
-	oauth_token_url, _ := sso_cfg.Get("oauth", "token_url")
+	oauth_client, ok := sso_cfg.Get("oauth", "client_id")
+
+	if !ok {
+		return nil, errors.Error("Invalid client_id")
+	}
+
+	oauth_secret, ok := sso_cfg.Get("oauth", "client_secret")
+
+	if !ok {
+		return nil, errors.Error("Invalid client_secret")
+	}
+
+	oauth_auth_url, ok := sso_cfg.Get("oauth", "auth_url")
+
+	if !ok {
+		return nil, errors.Error("Invalid auth_url")
+	}
+
+	oauth_token_url, ok := sso_cfg.Get("oauth", "token_url")
+
+	if !ok {
+		return nil, errors.Error("Invalid token_url")
+	}
 
 	// shrink to 32 characters
 
@@ -100,10 +121,16 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error){
 	crypto, err := crypto.NewCrypt(crypto_secret)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// writer.SetKey("secret", crypto_secret)
+	writer, err := NewSSOWriter()
+
+	if err != nil {
+		return nil, err
+	}
+
+	writer.SetKey("secret", crypto_secret)
 
 	redirect_url := "fix me"
 
@@ -118,8 +145,57 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error){
 		RedirectURL: redirect_url,
 	}
 
+	h := SSOHandler{
+		Crypt:  crypto,
+		Writer: writer,
+		OAuth:  conf,
+	}
+
+	return &h, nil
 }
 
-func (s *SSOHandler) Provider() http.HandleFunc {
+func (s *SSOHandler) Handler() http.HandleFunc {
 
+	f := func(rsp *http.Response, req http.Request) {
+
+		if re_signin.MatchString(path) {
+			url := s.OAuth.AuthCodeURL("state", oauth2.AccessTypeOnline)
+			http.Redirect(rsp, req, url, 302)
+			return
+		}
+
+		if re_auth.MatchString(path) {
+
+			query := req.URL.Query()
+			code := query.Get("code")
+
+			if code == "" {
+				http.Error(rsp, "Missing code parameter", http.StatusBadRequest)
+				return
+			}
+
+			token, err := s.OAuth.Exchange(oauth2.NoContext, code)
+
+			if err != nil {
+				http.Error(rsp, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			t, err := s.Crypt.Encrypt(token.AccessToken)
+
+			if err != nil {
+				http.Error(rsp, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			t_cookie := http.Cookie{Name: "t", Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: *tls_enable}
+			http.SetCookie(rsp, &t_cookie)
+
+			http.Redirect(rsp, req, "/", 302)
+			return
+		}
+
+	}
+
+	return http.HandleFunc(f)
 }
