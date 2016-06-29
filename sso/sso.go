@@ -21,7 +21,7 @@ func NewSSORewriter() (*SSORewriter, error) {
 type SSORewriter struct {
 	rewrite.HTMLRewriter
 	Request *http.Request
-	Secret  string
+	Crypt *crypto.Crypt
 }
 
 func (t *SSORewriter) SetKey(key string, value interface{}) error {
@@ -31,8 +31,8 @@ func (t *SSORewriter) SetKey(key string, value interface{}) error {
 		t.Request = req
 	}
 
-	if key == "secret" {
-		t.Secret = value.(string)
+	if key == "crypto" {
+		t.Crypt = value.(*crypto.Crypt)
 	}
 
 	return nil
@@ -47,9 +47,7 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 		if n.Type == html.ElementNode && n.Data == "body" {
 
 			t_cookie, _ := t.Request.Cookie("t")
-
-			crypt, _ := crypto.NewCrypt(t.Secret)
-			token, _ := crypt.Decrypt(t_cookie.Value)
+			token, _ := t.Crypto.Decrypt(t_cookie.Value)
 
 			token_ns := ""
 			token_key := "data-api-access-token"
@@ -133,7 +131,7 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 		return nil, err
 	}
 
-	writer.SetKey("secret", crypto_secret)
+	writer.SetKey("crypto", crypto)
 
 	redirect_url := "fix me"
 
@@ -157,7 +155,7 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 	return &h, nil
 }
 
-func (s *SSOHandler) Handler() http.HandleFunc {
+func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc {
 
 	re_signin, _ := regexp.Compile(`/signin/?$`)
 	re_auth, _ := regexp.Compile(`/auth/?$`)
@@ -200,7 +198,7 @@ func (s *SSOHandler) Handler() http.HandleFunc {
 				return
 			}
 
-			t_cookie := http.Cookie{Name: "t", Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: *tls_enable}
+			t_cookie := http.Cookie{Name: "t", Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: tls_enable}
 			http.SetCookie(rsp, &t_cookie)
 
 			http.Redirect(rsp, req, "/", 302)
