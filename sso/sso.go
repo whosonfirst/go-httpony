@@ -13,15 +13,15 @@ import (
 	"regexp"
 )
 
-func NewSSORewriter() (*SSORewriter, error) {
-	t := SSORewriter{}
+func NewSSORewriter(crypt *crypto.Crypt) (*SSORewriter, error) {
+	t := SSORewriter{Crypt: crypt}
 	return &t, nil
 }
 
 type SSORewriter struct {
 	rewrite.HTMLRewriter
 	Request *http.Request
-	Crypt *crypto.Crypt
+	Crypt   *crypto.Crypt
 }
 
 func (t *SSORewriter) SetKey(key string, value interface{}) error {
@@ -29,10 +29,6 @@ func (t *SSORewriter) SetKey(key string, value interface{}) error {
 	if key == "request" {
 		req := value.(*http.Request)
 		t.Request = req
-	}
-
-	if key == "crypto" {
-		t.Crypt = value.(*crypto.Crypt)
 	}
 
 	return nil
@@ -58,7 +54,7 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 
 			endpoint_ns := ""
 			endpoint_key := "data-api-endpoint"
-			endpoint_value := "fix-me"
+			endpoint_value := "fix-me" // FIX ME
 
 			endpoint_attr := html.Attribute{endpoint_ns, endpoint_key, endpoint_value}
 			n.Attr = append(n.Attr, endpoint_attr)
@@ -119,21 +115,19 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 	hash.Write([]byte(oauth_secret))
 	crypto_secret := hex.EncodeToString(hash.Sum(nil))
 
-	crypto, err := crypto.NewCrypt(crypto_secret)
+	crypt, err := crypto.NewCrypt(crypto_secret)
 
 	if err != nil {
 		return nil, err
 	}
 
-	writer, err := NewSSOWriter()
+	writer, err := NewSSOWriter(crypt)
 
 	if err != nil {
 		return nil, err
 	}
 
-	writer.SetKey("crypto", crypto)
-
-	redirect_url := "fix me"
+	redirect_url := "fix me" // FIXME
 
 	conf := &oauth2.Config{
 		ClientID:     oauth_client,
@@ -147,7 +141,7 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 	}
 
 	h := SSOHandler{
-		Crypt:  crypto,
+		Crypt:  crypt,
 		Writer: writer,
 		OAuth:  conf,
 	}
@@ -155,7 +149,7 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 	return &h, nil
 }
 
-func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc {
+func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc { // FIXME - put tls_enable somewhere better...
 
 	re_signin, _ := regexp.Compile(`/signin/?$`)
 	re_auth, _ := regexp.Compile(`/auth/?$`)
@@ -201,7 +195,7 @@ func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc {
 			t_cookie := http.Cookie{Name: "t", Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: tls_enable}
 			http.SetCookie(rsp, &t_cookie)
 
-			http.Redirect(rsp, req, "/", 302)
+			http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
 			return
 		}
 
@@ -233,6 +227,7 @@ func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc {
 			return
 		}
 
+		// FIXME - what about all the other files?
 	}
 
 	return http.HandleFunc(f)
