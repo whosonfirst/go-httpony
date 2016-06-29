@@ -154,7 +154,7 @@ func NewSSOProvider(sso_config string) (*SSOProvider, error) {
 	return &pr, nil
 }
 
-func (s *SSOProvider) Handler(docroot string, tls_enable bool) http.HandlerFunc { // FIXME - put tls_enable somewhere better...
+func (s *SSOProvider) SSOHandler(next http.Handler, docroot string, tls_enable bool) http.Handler {
 
 	re_signin, _ := regexp.Compile(`/signin/?$`)
 	re_auth, _ := regexp.Compile(`/auth/?$`)
@@ -162,7 +162,7 @@ func (s *SSOProvider) Handler(docroot string, tls_enable bool) http.HandlerFunc 
 
 	rewriter, _ := rewrite.NewHTMLRewriterHandler(s.Writer)
 
-	f := func(rsp http.ResponseWriter, req *http.Request) {
+	fn := func(rsp http.ResponseWriter, req *http.Request) {
 
 		url := req.URL
 		path := url.Path
@@ -232,8 +232,8 @@ func (s *SSOProvider) Handler(docroot string, tls_enable bool) http.HandlerFunc 
 			return
 		}
 
-		// FIXME - what about all the other files?
+		next.ServeHTTP(rsp, req)
 	}
 
-	return http.HandlerFunc(f)
+	return http.HandlerFunc(fn)
 }
