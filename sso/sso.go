@@ -8,6 +8,9 @@ import (
 	"github.com/whosonfirst/go-httpony/rewrite"
 	"golang.org/x/net/html"
 	"golang.org/x/oauth2"
+	"os"
+	"path/filepath"
+	"regexp"
 )
 
 func NewSSORewriter() (*SSORewriter, error) {
@@ -156,7 +159,16 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 
 func (s *SSOHandler) Handler() http.HandleFunc {
 
-	f := func(rsp *http.Response, req http.Request) {
+	re_signin, _ := regexp.Compile(`/signin/?$`)
+	re_auth, _ := regexp.Compile(`/auth/?$`)
+	re_html, _ := regexp.Compile(`/(?:(?:.*).html)?$`)
+
+	rewriter, _ := rewrite.NewHTMLRewriterHandler(s.Writer)
+
+	f := func(rsp http.ResponseWriter, req *http.Request) {
+
+		url := req.URL
+		path := url.Path
 
 		if re_signin.MatchString(path) {
 			url := s.OAuth.AuthCodeURL("state", oauth2.AccessTypeOnline)
@@ -192,6 +204,34 @@ func (s *SSOHandler) Handler() http.HandleFunc {
 			http.SetCookie(rsp, &t_cookie)
 
 			http.Redirect(rsp, req, "/", 302)
+			return
+		}
+
+		if re_html.MatchString(path) {
+
+			abs_path := filepath.Join(docroot, path)
+
+			info, err := os.Stat(abs_path)
+
+			if err != nil {
+				http.Error(rsp, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if info.IsDir() {
+				abs_path = filepath.Join(abs_path, "index.html")
+			}
+
+			reader, err := os.Open(abs_path)
+
+			if err != nil {
+				http.Error(rsp, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			handler := rewriter.Handler(reader)
+
+			handler.ServeHTTP(rsp, req)
 			return
 		}
 
