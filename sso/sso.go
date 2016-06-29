@@ -3,25 +3,28 @@ package sso
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"github.com/vaughan0/go-ini"
 	"github.com/whosonfirst/go-httpony/crypto"
 	"github.com/whosonfirst/go-httpony/rewrite"
 	"golang.org/x/net/html"
 	"golang.org/x/oauth2"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 )
 
 func NewSSORewriter(crypt *crypto.Crypt) (*SSORewriter, error) {
-	t := SSORewriter{Crypt: crypt}
+	t := SSORewriter{Crypto: crypt}
 	return &t, nil
 }
 
 type SSORewriter struct {
 	rewrite.HTMLRewriter
 	Request *http.Request
-	Crypt   *crypto.Crypt
+	Crypto  *crypto.Crypt
 }
 
 func (t *SSORewriter) SetKey(key string, value interface{}) error {
@@ -71,15 +74,15 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 	return nil
 }
 
-type SSOHandler struct {
-	Crypt  *crypro.Crypt
-	Writer *SSOWriter
+type SSOProvider struct {
+	Crypto *crypto.Crypt
+	Writer *SSORewriter
 	OAuth  *oauth2.Config
 }
 
-func NewSSOHandler(sso_config string) (*SSOHandler, error) {
+func NewSSOProvider(sso_config string) (*SSOProvider, error) {
 
-	sso_cfg, err = ini.LoadFile(*sso_config)
+	sso_cfg, err := ini.LoadFile(sso_config)
 
 	if err != nil {
 		return nil, err
@@ -88,26 +91,28 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 	oauth_client, ok := sso_cfg.Get("oauth", "client_id")
 
 	if !ok {
-		return nil, errors.Error("Invalid client_id")
+		return nil, errors.New("Invalid client_id")
 	}
 
 	oauth_secret, ok := sso_cfg.Get("oauth", "client_secret")
 
 	if !ok {
-		return nil, errors.Error("Invalid client_secret")
+		return nil, errors.New("Invalid client_secret")
 	}
 
 	oauth_auth_url, ok := sso_cfg.Get("oauth", "auth_url")
 
 	if !ok {
-		return nil, errors.Error("Invalid auth_url")
+		return nil, errors.New("Invalid auth_url")
 	}
 
 	oauth_token_url, ok := sso_cfg.Get("oauth", "token_url")
 
 	if !ok {
-		return nil, errors.Error("Invalid token_url")
+		return nil, errors.New("Invalid token_url")
 	}
+
+	// oauth_api_url, ok := sso_cfg.Get("oauth", "api_url")
 
 	// shrink to 32 characters
 
@@ -121,7 +126,7 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 		return nil, err
 	}
 
-	writer, err := NewSSOWriter(crypt)
+	writer, err := NewSSORewriter(crypt)
 
 	if err != nil {
 		return nil, err
@@ -140,16 +145,16 @@ func NewSSOHandler(sso_config string) (*SSOHandler, error) {
 		RedirectURL: redirect_url,
 	}
 
-	h := SSOHandler{
-		Crypt:  crypt,
+	pr := SSOProvider{
+		Crypto: crypt,
 		Writer: writer,
 		OAuth:  conf,
 	}
 
-	return &h, nil
+	return &pr, nil
 }
 
-func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc { // FIXME - put tls_enable somewhere better...
+func (s *SSOProvider) Handler(docroot string, tls_enable bool) http.HandlerFunc { // FIXME - put tls_enable somewhere better...
 
 	re_signin, _ := regexp.Compile(`/signin/?$`)
 	re_auth, _ := regexp.Compile(`/auth/?$`)
@@ -185,7 +190,7 @@ func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc { // FIXME - put t
 				return
 			}
 
-			t, err := s.Crypt.Encrypt(token.AccessToken)
+			t, err := s.Crypto.Encrypt(token.AccessToken)
 
 			if err != nil {
 				http.Error(rsp, err.Error(), http.StatusInternalServerError)
@@ -230,5 +235,5 @@ func (s *SSOHandler) Handler(tls_enable bool) http.HandleFunc { // FIXME - put t
 		// FIXME - what about all the other files?
 	}
 
-	return http.HandleFunc(f)
+	return http.HandlerFunc(f)
 }
