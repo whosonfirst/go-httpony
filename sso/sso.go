@@ -141,6 +141,18 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		return nil, errors.New("Invalid api_url")
 	}
 
+	oauth_scopes_str, ok := sso_cfg.Get("oauth", "scopes")
+
+	if !ok {
+		return nil, errors.New("Invalid scopes")
+	}
+
+	oauth_scopes := strings.Split(oauth_scopes_str, ",")
+
+	if len(oauth_scopes) == 0 {
+		return nil, errors.New("Missing scopes")
+	}
+
 	// shrink to 32 characters
 
 	hash := md5.New()
@@ -168,7 +180,7 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 	conf := &oauth2.Config{
 		ClientID:     oauth_client,
 		ClientSecret: oauth_secret,
-		Scopes:       []string{},
+		Scopes:       oauth_scopes,
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  oauth_auth_url,
 			TokenURL: oauth_token_url,
@@ -202,8 +214,10 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 		url := req.URL
 		path := url.Path
 
+		state := ""
+
 		if re_signin.MatchString(path) {
-			url := s.OAuth.AuthCodeURL("state", oauth2.AccessTypeOnline)
+			url := s.OAuth.AuthCodeURL(state, oauth2.AccessTypeOnline)
 			http.Redirect(rsp, req, url, 302)
 			return
 		}
@@ -217,6 +231,19 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				http.Error(rsp, "Missing code parameter", http.StatusBadRequest)
 				return
 			}
+
+			/*
+
+				for example:
+
+				{
+					"access_token": "TOKEN",
+					"scope": "write",
+					"expires": 1467477951,
+					"expires_in": 79931
+				}
+
+			*/
 
 			token, err := s.OAuth.Exchange(oauth2.NoContext, code)
 
