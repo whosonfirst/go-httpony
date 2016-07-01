@@ -2,9 +2,9 @@ package sso
 
 /*
 
-This is still wet-paint and a bit of hot mess in places. It works but it's not pretty and
-should porbably be updated to use the handy (Go) Context thingy... I think
-(20160630/thisisaaronland)
+This is still wet-paint and a bit of hot mess in places. It works but it's not pretty - specifically
+the handling of variables needed by both SSORewriter and SSOProvider. I am not sure what the correct
+approach is right now beyond just holding my nose and being happy it works at all... (20160701/thisisaaronland)
 
 */
 
@@ -34,8 +34,9 @@ func NewSSORewriter(crypt *crypto.Crypt) (*SSORewriter, error) {
 
 type SSORewriter struct {
 	rewrite.HTMLRewriter
-	Request *http.Request
-	Crypto  *crypto.Crypt
+	Request     *http.Request
+	Crypto      *crypto.Crypt
+	cookie_name string
 }
 
 func (t *SSORewriter) SetKey(key string, value interface{}) error {
@@ -43,6 +44,11 @@ func (t *SSORewriter) SetKey(key string, value interface{}) error {
 	if key == "request" {
 		req := value.(*http.Request)
 		t.Request = req
+	}
+
+	if key == "cookie_name" {
+		cookie_name := value.(string)
+		t.cookie_name = cookie_name
 	}
 
 	return nil
@@ -60,15 +66,16 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 			api_token := ""
 			api_ok := false
 
-			t_cookie, err := t.Request.Cookie("t")
+			auth_cookie, err := t.Request.Cookie(t.cookie_name)
 
 			if err == nil {
 
-				cookie, err := t.Crypto.Decrypt(t_cookie.Value)
+				cookie, err := t.Crypto.Decrypt(auth_cookie.Value)
 
 				if err != nil {
 					log.Printf("failed to decrypt cookie because %v\n", err)
 				} else {
+
 					stuff := strings.Split(cookie, "#")
 
 					if len(stuff) != 2 {
@@ -79,7 +86,6 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 						api_token = stuff[1]
 						api_ok = true
 					}
-
 				}
 			}
 
@@ -119,6 +125,7 @@ type SSOProvider struct {
 	endpoint     string
 	api_endpoint string
 	docroot      string
+	cookie_name  string
 	tls_enable   bool
 }
 
@@ -137,11 +144,11 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		value, ok := sso_cfg.Get("oauth", key)
 
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("Invalid key %s", key))
+			return nil, errors.New(fmt.Sprintf("Missing key %s", key))
 		}
 
 		if value == "" {
-			return nil, errors.New(fmt.Sprintf("Empty key %s", key))
+			return nil, errors.New(fmt.Sprintf("Invalid key %s", key))
 		}
 	}
 
@@ -156,6 +163,16 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 
 	if len(oauth_scopes) == 0 {
 		return nil, errors.New("Missing scopes")
+	}
+
+	cookie_name, ok := sso_cfg.Get("www", "cookie_name")
+
+	if !ok {
+		return nil, errors.New("Missing key: cookie_name")
+	}
+
+	if cookie_name == "" {
+		return nil, errors.New("Invalid key: cookie_name")
 	}
 
 	// shrink to 32 characters
@@ -175,6 +192,8 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 	if err != nil {
 		return nil, err
 	}
+
+	writer.SetKey("cookie_name", cookie_name)
 
 	redirect_url := fmt.Sprintf("http://%s/auth/", endpoint)
 
@@ -200,6 +219,7 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		endpoint:     endpoint,
 		api_endpoint: oauth_api_url,
 		docroot:      docroot,
+		cookie_name:  cookie_name,
 		tls_enable:   tls_enable,
 	}
 
@@ -275,8 +295,8 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				return
 			}
 
-			t_cookie := http.Cookie{Name: "t", Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: s.tls_enable}
-			http.SetCookie(rsp, &t_cookie)
+			auth_cookie := http.Cookie{Name: s.cookie_name, Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: s.tls_enable}
+			http.SetCookie(rsp, &auth_cookie)
 
 			http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
 			return
