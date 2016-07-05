@@ -17,6 +17,7 @@ import (
 	"github.com/whosonfirst/go-httpony/crypto"
 	"github.com/whosonfirst/go-httpony/rewrite"
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 	"golang.org/x/oauth2"
 	"io"
 	"log"
@@ -37,6 +38,7 @@ type SSORewriter struct {
 	Request     *http.Request
 	Crypto      *crypto.Crypt
 	cookie_name string
+	scripts     []string // see notes in SSORewriter.Rewrite
 }
 
 func (t *SSORewriter) SetKey(key string, value interface{}) error {
@@ -51,6 +53,11 @@ func (t *SSORewriter) SetKey(key string, value interface{}) error {
 		t.cookie_name = cookie_name
 	}
 
+	if key == "scripts" { // see notes in SSORewriter.Rewrite
+		scripts := value.([]string)
+		t.scripts = scripts
+	}
+
 	return nil
 }
 
@@ -59,6 +66,42 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 	var f func(node *html.Node, writer io.Writer)
 
 	f = func(n *html.Node, w io.Writer) {
+
+		if n.Type == html.ElementNode && n.Data == "head" {
+
+			/*
+
+				See this? It shouldn't be here, really. It should be in the go-httponly/inject
+				package but I think that all of the rewrite handling code needs to be refactored
+				to better accomodate multiple disparate HTML rewriter handlers. Right now what
+				happens is that we end spewing duplicate HTML to the browser which results in
+				hilarity... So for now, we'll just hold our nose and do it the ugly way
+				(21060705/thisisaaronland)
+
+			*/
+
+			if len(t.scripts) > 0 {
+
+				for c := n.FirstChild; c != nil; c = c.NextSibling {
+					f(c, w)
+				}
+
+				for _, src := range t.scripts {
+					script_type := html.Attribute{"", "type", "text/javascript"}
+					script_src := html.Attribute{"", "src", src}
+
+					script := html.Node{
+						Type:      html.ElementNode,
+						DataAtom:  atom.Script,
+						Data:      "script",
+						Namespace: "",
+						Attr:      []html.Attribute{script_type, script_src},
+					}
+
+					n.AppendChild(&script)
+				}
+			}
+		}
 
 		if n.Type == html.ElementNode && n.Data == "body" {
 
@@ -241,13 +284,9 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 		url := req.URL
 		path := url.Path
 
-		log.Printf("SSO %s\n", url)
-
 		state := ""
 
 		if re_signin.MatchString(path) {
-
-			log.Println("HAS COOKIE")
 
 			_, err := req.Cookie("t")
 
@@ -338,7 +377,6 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				return
 			}
 
-			log.Println("REWRITE SSO")
 			handler := rewriter.Handler(reader)
 
 			handler.ServeHTTP(rsp, req)
