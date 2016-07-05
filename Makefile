@@ -13,6 +13,7 @@ self:   prep
 	cp -r rewrite src/github.com/whosonfirst/go-httpony/
 	cp -r crypto src/github.com/whosonfirst/go-httpony/
 	cp -r sso src/github.com/whosonfirst/go-httpony/
+	cp -r inject src/github.com/whosonfirst/go-httpony/
 
 rmdeps:
 	if test -d src; then rm -rf src; fi 
@@ -34,6 +35,7 @@ fmt:
 	go fmt tls/*.go
 	go fmt rewrite/*.go
 	go fmt sso/*.go
+	go fmt inject/*.go
 
 bin: 	self
 	@GOPATH=$(GOPATH) go build -o bin/echo-pony cmd/echo-pony.go
