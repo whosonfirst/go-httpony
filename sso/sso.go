@@ -137,18 +137,27 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		return nil, err
 	}
 
-	required := []string{"client_id", "client_secret", "auth_url", "token_url", "api_url", "scopes"}
+	required_oauth := []string{"client_id", "client_secret", "auth_url", "token_url", "api_url", "scopes"}
+	required_www := []string{"cookie_name", "cookie_secret"}
 
-	for _, key := range required {
+	required := make(map[string][]string)
 
-		value, ok := sso_cfg.Get("oauth", key)
+	required["oauth"] = required_oauth
+	required["www"] = required_www
 
-		if !ok {
-			return nil, errors.New(fmt.Sprintf("Missing key %s", key))
-		}
+	for src, keys := range required {
 
-		if value == "" {
-			return nil, errors.New(fmt.Sprintf("Invalid key %s", key))
+		for _, key := range keys {
+
+			value, ok := sso_cfg.Get(src, key)
+
+			if !ok {
+				return nil, errors.New(fmt.Sprintf("Missing %s key %s", src, key))
+			}
+
+			if value == "" {
+				return nil, errors.New(fmt.Sprintf("Invalid %s key %s", src, key))
+			}
 		}
 	}
 
@@ -165,20 +174,13 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		return nil, errors.New("Missing scopes")
 	}
 
-	cookie_name, ok := sso_cfg.Get("www", "cookie_name")
-
-	if !ok {
-		return nil, errors.New("Missing key: cookie_name")
-	}
-
-	if cookie_name == "" {
-		return nil, errors.New("Invalid key: cookie_name")
-	}
+	cookie_name, _ := sso_cfg.Get("www", "cookie_name")
+	cookie_secret, _ := sso_cfg.Get("www", "cookie_secret")
 
 	// shrink to 32 characters
 
 	hash := md5.New()
-	hash.Write([]byte(oauth_secret))
+	hash.Write([]byte(cookie_secret))
 	crypto_secret := hex.EncodeToString(hash.Sum(nil))
 
 	crypt, err := crypto.NewCrypt(crypto_secret)
