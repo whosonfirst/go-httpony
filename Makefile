@@ -19,7 +19,7 @@ rmdeps:
 
 build:	rmdeps fmt bin
 
-deps:   self
+deps:   
 	@GOPATH=$(GOPATH) go get -u "github.com/vaughan0/go-ini"
 	@GOPATH=$(GOPATH) go get -u "golang.org/x/net/html"
 	@GOPATH=$(GOPATH) go get -u "golang.org/x/oauth2"
