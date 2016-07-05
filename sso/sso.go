@@ -65,8 +65,6 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 
 	var f func(node *html.Node, writer io.Writer)
 
-	var last *html.Node
-
 	f = func(n *html.Node, w io.Writer) {
 
 		if n.Type == html.ElementNode && n.Data == "head" {
@@ -140,8 +138,6 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 				n.Attr = append(n.Attr, endpoint_attr)
 			}
 		}
-
-		last = n
 
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			f(c, w)
