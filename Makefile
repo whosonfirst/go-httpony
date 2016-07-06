@@ -1,5 +1,6 @@
 CWD=$(shell pwd)
-GOPATH := $(CWD)/vendor:$(CWD)
+VENDORGOPATH := $(CWD)/vendor:$(CWD)
+GOPATH := $(CWD)
 
 prep:
 	if test -d pkg; then rm -rf pkg; fi
@@ -19,16 +20,10 @@ rmdeps:
 
 build:	rmdeps fmt bin
 
-deps:   self
+deps:   
 	@GOPATH=$(GOPATH) go get -u "github.com/vaughan0/go-ini"
 	@GOPATH=$(GOPATH) go get -u "golang.org/x/net/html"
 	@GOPATH=$(GOPATH) go get -u "golang.org/x/oauth2"
-
-vendor: rmdeps deps
-	if test ! -d vendor; then mkdir vendor; fi
-	if test -d vendor/src; then rm -rf vendor/src; fi
-	cp -r src vendor/src
-	# find vendor -name '.git' -print -type d -exec rm -rf {} +
 
 fmt:
 	go fmt cmd/*.go
