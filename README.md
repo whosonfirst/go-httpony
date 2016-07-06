@@ -12,6 +12,26 @@ _See note below about installing [dependencies](#dependencies)._
 
 ## Usage
 
+### CORS
+
+```
+import (
+	"github.com/whosonfirst/go-httpony/cors"
+	"net/http"
+)
+
+endpoint := "localhost:8080"
+cors_enable := true
+cors_allow := "*"
+
+default_handler := func() { ... } http.Handler
+
+// this is a standard http.HandlerFunc so assume chaining etc. here
+
+cors_handler := cors.EnsureCORSHandler(default_handler, cors_enable, cors_allow)
+http.ListenAndServe(endpoint, cors_handler)
+```
+
 ### Crypto
 
 ```
@@ -74,14 +94,12 @@ sso_provider, err := sso.NewSSOProvider(sso_config, endpoint, docroot, tls_enabl
 if err != nil {
 	panic(err)
 	return
-}					
+}
 
 // this is a standard http.HandlerFunc so assume chaining etc. here
 
 sso_handler := sso_provider.SSOHandler()
-
 http.ListenAndServe(endpoint, sso_handler)
-		
 ```
 
 #### SSO Config files
