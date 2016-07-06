@@ -274,6 +274,7 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 	re_signin, _ := regexp.Compile(`/signin/?$`)
+	re_signout, _ := regexp.Compile(`/signout/?$`)
 	re_auth, _ := regexp.Compile(`/auth/?$`)
 	re_html, _ := regexp.Compile(`/(?:(?:.*).html)?$`)
 
@@ -288,7 +289,7 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 		if re_signin.MatchString(path) {
 
-			_, err := req.Cookie("t")
+			_, err := req.Cookie(s.cookie_name)
 
 			if err == nil {
 				http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
@@ -297,6 +298,22 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 			url := s.OAuth.AuthCodeURL(state, oauth2.AccessTypeOnline)
 			http.Redirect(rsp, req, url, 302)
+			return
+		}
+
+		if re_signout.MatchString(path) {
+
+			cookie, err := req.Cookie(s.cookie_name)
+
+			if err == nil {
+				http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
+				return
+			}
+
+			cookie.Expires = cookie.Expires.Sub(1 * time.Hour)
+			http.SetCookie(rsp, cookie)
+
+			http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
 			return
 		}
 
