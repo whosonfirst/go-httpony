@@ -18,7 +18,7 @@ self:   prep
 rmdeps:
 	if test -d src; then rm -rf src; fi 
 
-build:	rmdeps fmt bin
+build:	rmdeps deps bin
 
 deps:   
 	@GOPATH=$(GOPATH) go get -u "github.com/vaughan0/go-ini"
@@ -33,5 +33,5 @@ fmt:
 	go fmt rewrite/*.go
 	go fmt sso/*.go
 
-bin: 	self
+bin: 	self fmt
 	@GOPATH=$(GOPATH) go build -o bin/echo-pony cmd/echo-pony.go

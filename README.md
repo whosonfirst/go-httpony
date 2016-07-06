@@ -2,6 +2,12 @@
 
 Utility functions for HTTP ponies written in Go.
 
+## Install
+
+```
+make build
+```
+
 ## Usage
 
 ### Crypto
@@ -47,6 +53,53 @@ func main() {
 }
 ```
 
+### SSO
+
+```
+
+import (
+	"github.com/whosonfirst/go-httpony/sso"
+	"net/http"
+)
+
+sso_config := "/path/to/ini-config-file.cfg"
+endpoint := "localhost:8080"
+docroot := "www"
+tls_enable := false
+
+sso_provider, err := sso.NewSSOProvider(sso_config, endpoint, docroot, tls_enable)
+
+if err != nil {
+	panic(err)
+	return
+}					
+
+// this is a standard http.HandlerFunc so assume chaining etc. here
+
+sso_handler := sso_provider.SSOHandler()
+
+http.ListenAndServe(endpoint, sso_handler)
+		
+```
+
+#### SSO Config files
+
+For example:
+
+```
+[oauth]
+client_id=OAUTH2_CLIENT_ID
+client_secret=OAUTH2_CLIENT_SECRET
+auth_url=https://example.com/oauth2/request/
+token_url=https://example.com/oauth2/token/
+api_url=https://example.com/api/
+scopes=write
+
+[www]
+cookie_name=sso
+cookie_secret=SSO_COOKIE_SECRET
+```
+
 ### TLS
 
 ```
@@ -79,3 +132,20 @@ http.ListenAndServeTLS("localhost:443", cert, key, nil)
 ```
 
 The details of setting up application specific HTTP handlers is left as an exercise to the reader.
+
+## Dependencies
+
+### Vendoring
+
+Vendoring has been disabled for the time being because when trying to load this package as a vendored dependency in _another_ package it all goes pear-shaped with errors like this:
+
+```
+make deps
+# cd /Users/local/mapzen/mapzen-slippy-map/www-server/vendor/src/github.com/whosonfirst/go-httpony; git submodule update --init --recursive
+fatal: no submodule mapping found in .gitmodules for path 'vendor/src/golang.org/x/net'
+package github.com/whosonfirst/go-httpony: exit status 128
+make: *** [deps] Error 1
+```
+
+I have no idea and would welcome suggestions...
+
