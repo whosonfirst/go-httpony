@@ -12,6 +12,7 @@ self:   prep
 	cp -r cors src/github.com/whosonfirst/go-httpony/
 	cp -r tls src/github.com/whosonfirst/go-httpony/
 	cp -r rewrite src/github.com/whosonfirst/go-httpony/
+	cp -r crumb src/github.com/whosonfirst/go-httpony/
 	cp -r crypto src/github.com/whosonfirst/go-httpony/
 	cp -r sso src/github.com/whosonfirst/go-httpony/
 
@@ -29,6 +30,7 @@ fmt:
 	go fmt cmd/*.go
 	go fmt *.go
 	go fmt cors/*.go
+	go fmt crumb/*.go
 	go fmt tls/*.go
 	go fmt rewrite/*.go
 	go fmt sso/*.go
