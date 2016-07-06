@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 )
 
 func NewSSORewriter(crypt *crypto.Crypt) (*SSORewriter, error) {
@@ -289,11 +290,15 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 		if re_signin.MatchString(path) {
 
-			_, err := req.Cookie(s.cookie_name)
+			auth_cookie, err := req.Cookie(s.cookie_name)
 
 			if err == nil {
-				http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
-				return
+				_, err = s.Crypto.Decrypt(auth_cookie.Value)
+
+				if err == nil {
+					http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
+					return
+				}
 			}
 
 			url := s.OAuth.AuthCodeURL(state, oauth2.AccessTypeOnline)
@@ -305,12 +310,26 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 			cookie, err := req.Cookie(s.cookie_name)
 
-			if err == nil {
+			if err != nil {
 				http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
 				return
 			}
 
-			cookie.Expires = cookie.Expires.Sub(1 * time.Hour)
+			// because this: https://github.com/golang/go/issues/15852
+
+			t := cookie.Expires
+			year, month, day := t.Date()
+			hour, min, sec := t.Clock()
+
+			location := t.Location()
+			expires := time.Date(year, month, day-1, hour, min, sec, 0, location)
+
+			// end of because this
+
+			cookie.Value = ""
+			cookie.Expires = expires
+			cookie.Path = "/"
+
 			http.SetCookie(rsp, cookie)
 
 			http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /

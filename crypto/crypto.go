@@ -8,6 +8,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"io"
 	"strings"
 )
@@ -54,6 +55,11 @@ func (c *Crypt) Encrypt(plaintext string) (string, error) {
 func (c *Crypt) Decrypt(enc string) (string, error) {
 
 	parts := strings.Split(enc, "#")
+
+	if len(parts) != 2 {
+	   return "", errors.New("Unable to parse encrypted value")
+	}
+	
 	hex_cipher := parts[0]
 	hex_nonce := parts[1]
 
