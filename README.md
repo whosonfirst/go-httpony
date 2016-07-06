@@ -8,7 +8,7 @@ Utility functions for HTTP ponies written in Go.
 make build
 ```
 
-_See note below inre: [dependencies](#dependencies)._
+_See note below about installing [dependencies](#dependencies)._
 
 ## Usage
 
