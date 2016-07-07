@@ -24,6 +24,6 @@ func main() {
 	fmt.Printf("crumb validates %t\n", ok)
 
 	if err != nil {
-	   fmt.Println(err)
+		fmt.Println(err)
 	}
 }

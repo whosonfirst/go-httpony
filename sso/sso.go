@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vaughan0/go-ini"
-	// "github.com/whosonfirst/go-httpony/crumb"
+	"github.com/whosonfirst/go-httpony/crumb"
 	"github.com/whosonfirst/go-httpony/crypto"
 	"github.com/whosonfirst/go-httpony/rewrite"
 	"golang.org/x/net/html"
@@ -40,6 +40,7 @@ type SSORewriter struct {
 	Request     *http.Request
 	Crypto      *crypto.Crypt
 	cookie_name string
+	crumb       string
 	scripts     []string // see notes in SSORewriter.Rewrite
 }
 
@@ -53,6 +54,11 @@ func (t *SSORewriter) SetKey(key string, value interface{}) error {
 	if key == "cookie_name" {
 		cookie_name := value.(string)
 		t.cookie_name = cookie_name
+	}
+
+	if key == "crumb" {
+		crumb := value.(string)
+		t.crumb = crumb
 	}
 
 	if key == "scripts" { // see notes in SSORewriter.Rewrite
@@ -149,6 +155,14 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 
 				endpoint_attr := html.Attribute{endpoint_ns, endpoint_key, endpoint_value}
 				n.Attr = append(n.Attr, endpoint_attr)
+
+				crumb_ns := ""
+				crumb_key := "data-crumb-signout"
+				crumb_value := t.crumb
+
+				crumb_attr := html.Attribute{crumb_ns, crumb_key, crumb_value}
+				n.Attr = append(n.Attr, crumb_attr)
+
 			}
 		}
 
@@ -171,6 +185,7 @@ type SSOProvider struct {
 	api_endpoint string
 	docroot      string
 	cookie_name  string
+	crumb_secret string
 	tls_enable   bool
 }
 
@@ -259,6 +274,8 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		RedirectURL: redirect_url,
 	}
 
+	crumb_secret := "D5hKjsg8fmXz"
+
 	pr := SSOProvider{
 		Crypto:       crypt,
 		Writer:       writer,
@@ -267,6 +284,7 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		api_endpoint: oauth_api_url,
 		docroot:      docroot,
 		cookie_name:  cookie_name,
+		crumb_secret: crumb_secret,
 		tls_enable:   tls_enable,
 	}
 
@@ -289,12 +307,8 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 		state := ""
 
-		/*
-			crumb_secret := "..."
-
-			ctx, _ := crumb.NewWebContext(req)
-			cr, _ := crumb.NewCrumb(ctx, crumb_secret, "signout", 10, 3600)
-		*/
+		ctx, _ := crumb.NewWebContext(req)
+		cr, _ := crumb.NewCrumb(ctx, s.crumb_secret, "signout", 10, 3600)
 
 		if re_signin.MatchString(path) {
 
@@ -323,24 +337,25 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				return
 			}
 
-			/*
-				query := req.URL.Query()
-				crumb_param := query.Get("crumb")
+			query := req.URL.Query()
+			crumb_param := query.Get("crumb")
 
-				if crumb_param == "" {
+			if crumb_param == "" {
+				http.Error(rsp, "Missing crumb", http.StatusInternalServerError)
+				return
+			}
 
-				}
+			ok, err := cr.Validate(crumb_param)
 
-				ok, err := cr.Validate(crumb_param)
+			if err != nil {
+				http.Error(rsp, err.Error(), http.StatusInternalServerError)
+				return
+			}
 
-				if err != nil {
-
-				}
-
-				if !ok {
-
-				}
-			*/
+			if !ok {
+				http.Error(rsp, "Invalid crumb", http.StatusInternalServerError)
+				return
+			}
 
 			// because this: https://github.com/golang/go/issues/15852
 
@@ -439,6 +454,8 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				http.Error(rsp, err.Error(), http.StatusInternalServerError)
 				return
 			}
+
+			s.Writer.SetKey("crumb", cr.Generate())
 
 			handler := rewriter.Handler(reader)
 
