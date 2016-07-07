@@ -56,7 +56,6 @@ func NewWebContext(req *http.Request) (*WebContext, error) {
 func (ctx *WebContext) Foo() []string {
 
 	stuff := []string{
-		ctx.req.URL.Path,
 		ctx.req.RemoteAddr,
 	}
 
@@ -134,6 +133,8 @@ func (c *Crumb) Validate(crumb string) (bool, error) {
 	// to do - test one character at a time...
 
 	if test != hash {
+
+		// fmt.Printf("test %s != hash %s\n", test, hash)
 		return false, errors.New("crumb does not match")
 	}
 
@@ -150,6 +151,7 @@ func (c *Crumb) Base() string {
 		parts = append(parts, v)
 	}
 
+	// fmt.Println(parts)
 	return strings.Join(parts, ":")
 }
 
