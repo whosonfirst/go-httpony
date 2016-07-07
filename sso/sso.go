@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -178,15 +179,16 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 }
 
 type SSOProvider struct {
-	Crypto       *crypto.Crypt
-	Writer       *SSORewriter
-	OAuth        *oauth2.Config
-	endpoint     string
-	api_endpoint string
-	docroot      string
-	cookie_name  string
-	crumb_secret string
-	tls_enable   bool
+	Crypto        *crypto.Crypt
+	Writer        *SSORewriter
+	OAuth         *oauth2.Config
+	endpoint      string
+	api_endpoint  string
+	docroot       string
+	cookie_name   string
+	crumb_secret  string
+	crumb_timeout int
+	tls_enable    bool
 }
 
 func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enable bool) (*SSOProvider, error) {
@@ -198,7 +200,7 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 	}
 
 	required_oauth := []string{"client_id", "client_secret", "auth_url", "token_url", "api_url", "scopes"}
-	required_www := []string{"cookie_name", "cookie_secret"}
+	required_www := []string{"cookie_name", "cookie_secret", "crumb_secret", "crumb_timeout"}
 
 	required := make(map[string][]string)
 
@@ -237,6 +239,15 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 	cookie_name, _ := sso_cfg.Get("www", "cookie_name")
 	cookie_secret, _ := sso_cfg.Get("www", "cookie_secret")
 
+	crumb_secret, _ := sso_cfg.Get("www", "crumb_secret")
+	crumb_timeout_str, _ := sso_cfg.Get("www", "crumb_timeout")
+
+	crumb_timeout, err := strconv.Atoi(crumb_timeout_str)
+
+	if err != nil {
+		return nil, err
+	}
+
 	// shrink to 32 characters
 
 	hash := md5.New()
@@ -274,18 +285,17 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 		RedirectURL: redirect_url,
 	}
 
-	crumb_secret := "D5hKjsg8fmXz"
-
 	pr := SSOProvider{
-		Crypto:       crypt,
-		Writer:       writer,
-		OAuth:        conf,
-		endpoint:     endpoint,
-		api_endpoint: oauth_api_url,
-		docroot:      docroot,
-		cookie_name:  cookie_name,
-		crumb_secret: crumb_secret,
-		tls_enable:   tls_enable,
+		Crypto:        crypt,
+		Writer:        writer,
+		OAuth:         conf,
+		endpoint:      endpoint,
+		api_endpoint:  oauth_api_url,
+		docroot:       docroot,
+		cookie_name:   cookie_name,
+		crumb_secret:  crumb_secret,
+		crumb_timeout: crumb_timeout,
+		tls_enable:    tls_enable,
 	}
 
 	return &pr, nil
@@ -308,7 +318,7 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 		state := ""
 
 		ctx, _ := crumb.NewWebContext(req)
-		cr, _ := crumb.NewCrumb(ctx, s.crumb_secret, "signout", 10, 3600)
+		cr, _ := crumb.NewCrumb(ctx, s.crumb_secret, "signout", 10, s.crumb_timeout)
 
 		if re_signin.MatchString(path) {
 

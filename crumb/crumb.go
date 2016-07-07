@@ -118,11 +118,13 @@ func (c *Crumb) Validate(crumb string) (bool, error) {
 
 	hash := parts[1]
 
-	then := t + c.ttl
-	now := time.Now().Unix()
+	if c.ttl > 0 {
+		then := t + c.ttl
+		now := time.Now().Unix()
 
-	if now > int64(then) {
-		return false, errors.New("crumb has expired")
+		if now > int64(then) {
+			return false, errors.New("crumb has expired")
+		}
 	}
 
 	base := c.Base()
