@@ -41,10 +41,10 @@ func (ctx *CommandLineContext) Foo() []string {
 
 type WebContext struct {
 	Context
-	req http.Request
+	req *http.Request
 }
 
-func NewWebContext(req http.Request) (*WebContext, error) {
+func NewWebContext(req *http.Request) (*WebContext, error) {
 
 	ctx := WebContext{
 		req: req,

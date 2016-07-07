@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vaughan0/go-ini"
+	// "github.com/whosonfirst/go-httpony/crumb"
 	"github.com/whosonfirst/go-httpony/crypto"
 	"github.com/whosonfirst/go-httpony/rewrite"
 	"golang.org/x/net/html"
@@ -288,6 +289,13 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 
 		state := ""
 
+		/*
+			crumb_secret := "..."
+
+			ctx, _ := crumb.NewWebContext(req)
+			cr, _ := crumb.NewCrumb(ctx, crumb_secret, "signout", 10, 3600)
+		*/
+
 		if re_signin.MatchString(path) {
 
 			auth_cookie, err := req.Cookie(s.cookie_name)
@@ -314,6 +322,25 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
 				return
 			}
+
+			/*
+				query := req.URL.Query()
+				crumb_param := query.Get("crumb")
+
+				if crumb_param == "" {
+
+				}
+
+				ok, err := cr.Validate(crumb_param)
+
+				if err != nil {
+
+				}
+
+				if !ok {
+
+				}
+			*/
 
 			// because this: https://github.com/golang/go/issues/15852
 

@@ -32,6 +32,29 @@ cors_handler := cors.EnsureCORSHandler(default_handler, cors_enable, cors_allow)
 http.ListenAndServe(endpoint, cors_handler)
 ```
 
+### Crumb
+
+```
+import (
+	"github.com/whosonfirst/go-httpony/crumb"
+	"net/http"
+)
+
+// assume req is a *http.Request
+
+ctx, _ := crumb.NewWebContext(req)
+
+key := "G5fsBjKlsz009"
+target := "admin"
+length := 10
+ttl := 600
+
+c, _ := crumb.NewCrumb(ctx, key, target, length, ttl)
+cr := c.Generate()
+
+ok, err := c.Validate(cr)
+```
+
 ### Crypto
 
 ```
