@@ -179,16 +179,17 @@ func (t *SSORewriter) Rewrite(node *html.Node, writer io.Writer) error {
 }
 
 type SSOProvider struct {
-	Crypto        *crypto.Crypt
-	Writer        *SSORewriter
-	OAuth         *oauth2.Config
-	endpoint      string
-	api_endpoint  string
-	docroot       string
-	cookie_name   string
-	crumb_secret  string
-	crumb_timeout int
-	tls_enable    bool
+	Crypto         *crypto.Crypt
+	Writer         *SSORewriter
+	OAuth          *oauth2.Config
+	endpoint       string
+	api_endpoint   string
+	docroot        string
+	cookie_name    string
+	cookie_timeout int
+	crumb_secret   string
+	crumb_timeout  int
+	tls_enable     bool
 }
 
 func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enable bool) (*SSOProvider, error) {
@@ -200,7 +201,7 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 	}
 
 	required_oauth := []string{"client_id", "client_secret", "auth_url", "token_url", "api_url", "scopes"}
-	required_www := []string{"cookie_name", "cookie_secret", "crumb_secret", "crumb_timeout"}
+	required_www := []string{"cookie_name", "cookie_secret", "cookie_timeout", "crumb_secret", "crumb_timeout"}
 
 	required := make(map[string][]string)
 
@@ -238,6 +239,13 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 
 	cookie_name, _ := sso_cfg.Get("www", "cookie_name")
 	cookie_secret, _ := sso_cfg.Get("www", "cookie_secret")
+	cookie_timeout_str, _ := sso_cfg.Get("www", "cookie_timeout")
+
+	cookie_timeout, err := strconv.Atoi(cookie_timeout_str)
+
+	if err != nil {
+		return nil, err
+	}
 
 	crumb_secret, _ := sso_cfg.Get("www", "crumb_secret")
 	crumb_timeout_str, _ := sso_cfg.Get("www", "crumb_timeout")
@@ -286,16 +294,17 @@ func NewSSOProvider(sso_config string, endpoint string, docroot string, tls_enab
 	}
 
 	pr := SSOProvider{
-		Crypto:        crypt,
-		Writer:        writer,
-		OAuth:         conf,
-		endpoint:      endpoint,
-		api_endpoint:  oauth_api_url,
-		docroot:       docroot,
-		cookie_name:   cookie_name,
-		crumb_secret:  crumb_secret,
-		crumb_timeout: crumb_timeout,
-		tls_enable:    tls_enable,
+		Crypto:         crypt,
+		Writer:         writer,
+		OAuth:          conf,
+		endpoint:       endpoint,
+		api_endpoint:   oauth_api_url,
+		docroot:        docroot,
+		cookie_name:    cookie_name,
+		cookie_timeout: cookie_timeout,
+		crumb_secret:   crumb_secret,
+		crumb_timeout:  crumb_timeout,
+		tls_enable:     tls_enable,
 	}
 
 	return &pr, nil
@@ -428,7 +437,24 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				return
 			}
 
-			auth_cookie := http.Cookie{Name: s.cookie_name, Value: t, Expires: token.Expiry, Path: "/", HttpOnly: true, Secure: s.tls_enable}
+			var expires time.Time
+
+			if s.cookie_timeout > 0 {
+
+				now := time.Now()
+				ts := now.Unix()
+
+				ts += int64(s.cookie_timeout)
+				expires = time.Unix(ts, 0)
+
+			} else {
+				expires = token.Expiry
+			}
+
+			// fmt.Println(now)
+			// fmt.Println(expires)
+
+			auth_cookie := http.Cookie{Name: s.cookie_name, Value: t, Expires: expires, Path: "/", HttpOnly: true, Secure: s.tls_enable}
 			http.SetCookie(rsp, &auth_cookie)
 
 			http.Redirect(rsp, req, "/", 302) // FIXME - do not simply redirect to /
