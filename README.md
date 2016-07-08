@@ -143,6 +143,8 @@ On all the other HTML pages (the ones you've created for your web application) i
 <body data-api-access-token="927f384c059af236a7861b87c3759ce5" data-api-endpoint="https://example.com/api/" data-crumb-signout="1467922317-42d064ad80-☃">
 ```
 
+#### What now?
+
 It is left up your web application to determine what to _do_ with these new endpoints and functionality. This includes embedding or rendering links to the `/signin` and `/signout` endpoints. Here is some sample Javascript that will inject `signin` or `signout` links when the page is loaded. Something like this mmmmmmmmmight be added to the `sso` handler in future releases...
 
 ```
