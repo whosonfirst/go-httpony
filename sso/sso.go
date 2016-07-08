@@ -427,6 +427,11 @@ func (s *SSOProvider) SSOHandler(next http.Handler) http.Handler {
 				return
 			}
 
+			if token.AccessToken == "" {
+				http.Error(rsp, "SSO provider returned a garbage access token!", http.StatusInternalServerError)
+				return
+			}
+
 			stuff := []string{s.api_endpoint, token.AccessToken}
 			cookie := strings.Join(stuff, "#")
 
