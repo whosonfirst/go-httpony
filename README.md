@@ -143,7 +143,48 @@ On all the other HTML pages (the ones you've created for your web application) i
 <body data-api-access-token="927f384c059af236a7861b87c3759ce5" data-api-endpoint="https://example.com/api/" data-crumb-signout="1467922317-42d064ad80-☃">
 ```
 
-It is left up your web application to determine what to _do_ with these new endpoints and functionality. This includes embedding or rendering links to the `/signin` and `/signout` endpoints.
+It is left up your web application to determine what to _do_ with these new endpoints and functionality. This includes embedding or rendering links to the `/signin` and `/signout` endpoints. Here is some sample Javascript that will inject `signin` or `signout` links when the page is loaded. Something like this mmmmmmmmmight be added to the `sso` handler in future releases...
+
+```
+<script type="text/javascript">  
+window.addEventListener('load', function(e){
+
+	var body = document.body;
+	var signout_crumb = body.getAttribute("data-crumb-signout");
+
+	if (signout_crumb){
+
+		var signout_href = "/signout?crumb=" + encodeURIComponent(signout_crumb);
+
+		var signout_link = document.createElement("a");
+		signout_link.setAttribute("href", signout_href);
+		signout_link.appendChild(document.createTextNode("sign out"));
+
+		var signout_el = document.createElement("div");
+		signout_el.setAttribute("id", "signout");
+		signout_el.appendChild(signout_link);
+
+		body.insertBefore(signout_el, body.childNodes[0]);
+	}
+
+	else {
+
+		var signin_href = "/signin";
+
+		var signin_link = document.createElement("a");
+		signin_link.setAttribute("href", signin_href);
+		signin_link.appendChild(document.createTextNode("sign in"));
+
+		var signin_el = document.createElement("div");
+		signin_el.setAttribute("id", "signin");
+		signin_el.appendChild(signin_link);
+
+		body.insertBefore(signin_el, body.childNodes[0]);
+	}
+
+});
+</script>
+```
 
 The details of registering your web application, as an OAuth2 consumer, with any given third-party are outside the scope of this document. At a minimum if you are using `wof-fileserver` to run a web application locally you should make sure that the third-party service supports redirecting users to `http://localhost`
 
