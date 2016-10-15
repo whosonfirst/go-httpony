@@ -5,10 +5,10 @@ Utility functions for HTTP ponies written in Go.
 ## Install
 
 ```
-make build
+make bin
 ```
 
-_See note below about installing [dependencies](#dependencies)._
+All the various dependencies have been included in the `vendor` directory.
 
 ## Usage
 
@@ -247,20 +247,3 @@ http.ListenAndServeTLS("localhost:443", cert, key, nil)
 ```
 
 The details of setting up application specific HTTP handlers is left as an exercise to the reader.
-
-## Dependencies
-
-### Vendoring
-
-Vendoring has been disabled for the time being because when trying to load this package as a vendored dependency in _another_ package it all goes pear-shaped with errors like this:
-
-```
-make deps
-# cd /Users/local/mapzen/mapzen-slippy-map/www-server/vendor/src/github.com/whosonfirst/go-httpony; git submodule update --init --recursive
-fatal: no submodule mapping found in .gitmodules for path 'vendor/src/golang.org/x/net'
-package github.com/whosonfirst/go-httpony: exit status 128
-make: *** [deps] Error 1
-```
-
-I have no idea and would welcome suggestions...
-
